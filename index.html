@@ -173,7 +173,7 @@ button:active{transform:scale(.94);filter:brightness(.9);box-shadow:inset 0 1px 
   <div class="card"><div class="lbl">보유 종목 · 경과</div><div class="val" id="vHold">-</div></div>
   <div class="card"><div class="lbl">매매횟수 | 손익비</div><div class="val" id="vTradeCount">0회</div></div>
   <div class="card"><div class="lbl">누적 손익%</div><div class="val" id="vAnnual">-</div></div>
-  <div class="card"><div class="lbl">현재 손익(수수료 차감)</div><div class="val" id="vPnl">-</div></div>
+  <div class="card"><div class="lbl">현재 손익</div><div class="val" id="vPnl">-</div></div>
 </div>
 
 <div class="inst">
@@ -255,7 +255,7 @@ button:active{transform:scale(.94);filter:brightness(.9);box-shadow:inset 0 1px 
 'use strict';
 
 const WORKER='https://candle-practice-1min.kim80091.workers.dev'; // AI 분석 전용 (없어도 차트·매매는 동작)
-const FEE=.0003;          // ETF: 매매수수료만(거래세 없음) 왕복 약 0.03% 가정 — 증권사 수수료에 맞게 바꾸세요
+const FEE=0;              // 매매 수수료·거래세 없음 (SK하이닉스 단일종목 ETF). 수수료를 반영하려면 왕복 비율로 (예: 0.0003 = 0.03%)
 const YW=(window.innerWidth<760)?58:70; // 가격축 폭 (폰은 좁게)
 const VP=8;                // 오른쪽 여유 칸
 const ZOOMS=[20,30,45,60,90,120,180,240]; // 한 화면에 보이는 봉 수 단계 (확대할수록 적게)
@@ -1214,7 +1214,7 @@ async function requestAIAnalysis(record){
 
 ===== 거래 #${record.no} 기본 정보 (${META[record.sym].label}) =====
 매수가: ${fp(record.buyPrice)}원  |  매도가: ${fp(record.sellPrice)}원
-총 수익률: ${record.grossPct.toFixed(2)}%  |  수수료 차감 후: ${record.netPct.toFixed(2)}%
+수익률: ${record.netPct.toFixed(2)}% (매매 수수료 없음)
 보유기간: ${record.holdMin}분  |  결과: ${record.win?'수익':'손실'}
 보유 중 최고 수익률: +${record.maxPct.toFixed(2)}%  |  보유 중 최저 수익률: ${record.minPct.toFixed(2)}%
 
