@@ -190,8 +190,6 @@ button:active{transform:scale(.94);filter:brightness(.9);box-shadow:inset 0 1px 
     <span class="iname" style="color:#D93025;">KODEX SK하이닉스단일종목레버리지</span>
     <span class="iprice" id="pxK">-</span><span class="ichg" id="chgK"></span><span class="ipos" id="posK"></span>
     <span class="ileg"><span style="color:#F5A623;">MA5</span> <span style="color:#2962FF;font-weight:900;">─</span><span style="color:#1E4FD8;">시작지점</span> <span style="color:#FFD400;font-weight:900;text-shadow:0 0 1px #B38F00;">━</span><span style="color:#A67F00;">고점선</span> <span style="color:#00FFFF;font-weight:900;text-shadow:0 0 1px #0097A7;">━</span><span style="color:#00838F;">저점선</span> <span style="color:#0000FF;">▼매도신호</span> <span style="color:#FF8C00;">▲눌림목선신호</span> <span style="color:#FF0000;">▲매수(하락 후, 상승초입)</span> <span style="color:#FF4FA3;">▲매수(초입더블핑크,상승파동)</span></span>
-    <span class="zoomgrp"><span class="zl2">상하</span><button class="zb" id="zyMinusK" title="상하 축소 (가격 범위 넓게)">－</button><span class="zl" id="zyLblK">자동</span><button class="zb" id="zyPlusK" title="상하 확대 (현재 봉 기준, 가격 범위 좁게)">＋</button><button class="zb zauto" id="zyAutoK" title="자동 맞춤으로 되돌리기">자동</button></span>
-    <span class="zoomgrp"><span class="zl2">가로</span><button class="zb" id="zMinusK" title="봉 적게 (가로 확대)">－</button><span class="zl" id="zLblK">60봉</span><button class="zb" id="zPlusK" title="봉 많이 (가로 축소)">＋</button></span>
   </div>
   <div class="cbox"><div class="cwrap pc"><canvas id="cPriceK"></canvas></div></div>
   <div class="cbox"><div class="ddrow"><span>MA5 경사</span><span class="ddval" id="vSlK">-</span></div><div class="cwrap sl"><canvas id="cSlK"></canvas></div></div>
@@ -704,7 +702,6 @@ function needPx(inst,key,k){
   const o=inst.slotOwn[k];
   if(o<0)return{up:0,down:0};
   const ix=inst.ind;let up=0,down=0;
-  if(ix.r30[o])up=16;                                   // 캔들 위 초록 점
   const sUp=ix.ssig[o]?1:0;
   if(sUp)up=Math.max(up,GAP0+ARROW_LEN);                // 매도신호 ▼
   const nDown=(ix.pb[o]?1:0)+(ix.bsig[o]?1:0)+(ix.rsig[o]?1:0);
@@ -729,7 +726,6 @@ function buildPA(key){
     const r30=inst.ind.r30[o];
     if(r30)list.push({t:'sigbar',xi:li,v:0.9,cl:C_MA30REV});
     if(inst.ind.up[o])list.push({t:'sigbar',xi:li,v:0.3,cl:C_MA30UP});
-    if(r30)marks.push({t:'circ',xi:li,yi:c.h}); // MA30 추세반전: 캔들 위 형광초록 동그라미
     // 눌림목 선신호: 매수 화살표와 같은 자리(캔들 아래)에 주황 ▲
     if(inst.ind.pb[o])marks.push({t:'arrow',xi:li,yi:c.l,cl:C_PULLBACK,up:true});
     // 지지점 접촉: 저점선과 같은 시안색 ▲ (눌림목 ▲가 같은 칸에 있으면 그 아래)
@@ -836,8 +832,8 @@ function refresh(){
       pc.options.scales.y.min=lo;pc.options.scales.y.max=pHi;
     }
     pc.options.scales.y.ticks.display=(pLo!==null); // 보이는 봉이 없으면 눈금 숨김
-    const zyEl=document.getElementById('zyLbl'+key);
-    if(zyEl)zyEl.textContent=(yman[key]===null||cpNow===null)?'자동':(yman[key]/cpNow*100).toFixed(1)+'%';
+    const zyEl=document.getElementById('zyLbl'+key); // 아래쪽(SOL) 차트에만 있는 공용 라벨
+    if(zyEl)zyEl.textContent=(yman.K===null&&yman.S===null)?'자동':((yLvl>0?'+':'')+yLvl);
 
 
     // MA5 경사 (각도, 양수만) — 주황 막대 / 오른쪽 숫자는 현재 값
@@ -1070,13 +1066,18 @@ function fitRange(key){ // 오늘 진행된 봉(최근 30개)의 고저폭 기�
   if(n===0){hi=lo=cp;}
   return Math.max((hi-lo)*1.8,cp*0.006);
 }
-function yStep(key,dir){ // dir=+1: 확대(가격 범위 좁게), -1: 축소(넓게)
-  const cp=curPrice(key);
-  if(cp===null||!tl.length)return;
-  let R=yman[key];
-  if(R===null)R=fitRange(key); // 자동 상태에서 처음 누르면 '현재 봉 기준 맞춤'에서 출발
-  R=dir>0?R*0.7:R*1.4;
-  yman[key]=Math.min(cp*0.5,Math.max(cp*0.0015,R));
+let yLvl=0; // 상하 확대 단계(표시용): +는 확대, -는 축소, 두 차트가 함께 움직임
+function yStepAll(dir){ // dir=+1: 확대(가격 범위 좁게), -1: 축소(넓게) — 두 차트에 같은 비율(×0.7 / ×1.4)로 적용
+  if(!tl.length)return;
+  KEYS.forEach(key=>{
+    const cp=curPrice(key);
+    if(cp===null)return;
+    let R=yman[key];
+    if(R===null)R=fitRange(key); // 자동 상태에서 처음 누르면 각 차트의 '현재 봉 기준 맞춤'에서 출발
+    R=dir>0?R*0.7:R*1.4;
+    yman[key]=Math.min(cp*0.5,Math.max(cp*0.0015,R));
+  });
+  yLvl+=dir;
   refresh();
 }
 function prefixFor(v){return Math.max(TAIL_VISIBLE,v-40);}
@@ -1086,7 +1087,7 @@ function setZoom(v){
   KEYS.forEach(k=>{
     [I[k].pc,I[k].sl].forEach(c=>{c.options.scales.x.max=VIS+VP-1;});
   });
-  ['T','K','S'].forEach(x=>{const el=document.getElementById('zLbl'+x);if(el)el.textContent=VIS+'봉';});
+  ['T','S'].forEach(x=>{const el=document.getElementById('zLbl'+x);if(el)el.textContent=VIS+'봉';});
   if(tl.length){base=Math.max(0,dayStart-prefixFor(VIS));refresh();}
 }
 function zoomStep(dir){ // dir=+1: 봉 수↓(가로 확대), -1: 봉 수↑(가로 축소)
@@ -1101,7 +1102,7 @@ function startDay(date){
   dayStart=D.start;dayEnd=D.end;cur=D.start;
   base=Math.max(0,D.start-prefixFor(VIS)); // 전일 마지막 칸들을 미리 보여줌 (기본 20칸)
   curDate=date;elapsed=0;
-  yman.K=null;yman.S=null; // 새 날짜는 상하 자동으로 시작
+  yman.K=null;yman.S=null;yLvl=0; // 새 날짜는 상하 자동으로 시작
   dataIncomplete=D.incomplete;
   resetStats();
   let note='';
@@ -1403,7 +1404,7 @@ document.getElementById('btnLoad').onclick=()=>{
 document.getElementById('btnRandDay').onclick=loadRandomDay;
 document.getElementById('btnReset').onclick=()=>{if(curDate)startDay(curDate);};
 document.getElementById('btnToggleT').onclick=toggleStart;
-['T','K','S'].forEach(x=>{
+['T','S'].forEach(x=>{
   document.getElementById('zPlus'+x).onclick=()=>zoomStep(-1);  // ＋ : 봉 많이 (화면에 더 많은 봉)
   document.getElementById('zMinus'+x).onclick=()=>zoomStep(1);   // － : 봉 적게 (봉이 커짐)
 });
@@ -1412,11 +1413,10 @@ KEYS.forEach(k=>{
   document.getElementById('btnSell'+k).onclick=()=>doSell(k);
   document.getElementById('btnToggle'+k).onclick=toggleStart;
 });
-KEYS.forEach(k=>{
-  document.getElementById('zyPlus'+k).onclick=()=>yStep(k,1);
-  document.getElementById('zyMinus'+k).onclick=()=>yStep(k,-1);
-  document.getElementById('zyAuto'+k).onclick=()=>{yman[k]=null;refresh();};
-});
+// 상하 확대·축소 버튼은 아래쪽(SOL) 차트에만 있고, 누르면 두 차트에 같이 적용됨
+document.getElementById('zyPlusS').onclick=()=>yStepAll(1);
+document.getElementById('zyMinusS').onclick=()=>yStepAll(-1);
+document.getElementById('zyAutoS').onclick=()=>{yman.K=null;yman.S=null;yLvl=0;refresh();};
 document.getElementById('btnAiRequest').onclick=()=>{
   if(!lastTradeRecord){alert('완료된 거래(매도로 청산된 거래)가 아직 없습니다.');return;}
   requestAIAnalysis(lastTradeRecord);
@@ -1464,7 +1464,7 @@ document.getElementById('btnClearSaved').onclick=()=>{
 };
 
 // ── 시작: 지난번에 불러온 데이터가 있으면 자동 복원 ─────────────
-['T','K','S'].forEach(x=>{const el=document.getElementById('zLbl'+x);if(el)el.textContent=VIS+'봉';});
+['T','S'].forEach(x=>{const el=document.getElementById('zLbl'+x);if(el)el.textContent=VIS+'봉';});
 restoreSaved();
 
 })();
