@@ -555,10 +555,20 @@ const C_BUYSIG='#FF70C1';   // 매수(초입더블핑크,상승파동) (연한 �
 const C_RED='#A00A1E';      // 매수(하락 후, 상승초입) (진한 빨강)
 const C_SELLSIG='#0000FF';  // 매도신호 (파랑, 첨부 이미지 색)
 const W_LEVEL=2.5;          // 저점선·고점선 굵기 (같은 굵기)
-const GAP0=18;          // 캔들(고가/저가)에서 첫 표식까지 거리(px)
-const STACK_PX=20;      // 같은 칸에 표식이 여러 개일 때 하나씩 쌓는 간격(px)
-const ARROW_LEN=16;     // 신호 화살표(기존의 2배 크기) 길이(px)
-const BS_W=18,BS_H=22,BS_TIP=7; // 내 매수(B)·매도(S) 표식: 가로, 전체 높이, 뾰족한 끝 높이(px)
+// ── 표식(화살표·삼각형·B/S 배지)의 크기와 위치: 캔들 한 칸의 폭(pitch, px)에 비례 ──
+//   가로 봉 수를 바꾸면(캔들 폭이 바뀌면) 표식도 같이 커지고 작아지며, 캔들 끝에 바짝 붙여서 화면을 덜 차지하게 함
+function pitchOf(chart){ // 가로로 한 칸(봉 하나)이 차지하는 픽셀 폭
+  const x=chart.scales&&chart.scales.x;
+  if(x&&x.width>0){const p=Math.abs(x.getPixelForValue(1)-x.getPixelForValue(0));if(p>0&&isFinite(p))return p;}
+  return Math.max(3,((chart.width||600)-80)/(VIS+VP)); // 아직 그려지기 전이면 추정
+}
+function markGeom(pitch){
+  const sz=Math.max(2.2,Math.min(8,pitch*0.34));        // 화살표 반폭 → 화살표 폭 = 2*sz ≈ 캔들 몸통 폭(칸의 0.7배)
+  const arrowLen=sz*2.8;                                  // 화살표 길이: 머리 1.8*sz + 꼬리 1*sz
+  const bw=Math.max(11,Math.min(28,pitch*1.1)),k=bw/18;   // B/S 배지 폭 (글자가 읽히는 최소 11px)
+  return{sz,arrowLen,gap:2,stack:arrowLen+1,               // gap: 캔들 끝에서 첫 표식까지 2px / stack: 같은 칸에 쌓일 때 간격
+    bw,bh:22*k,btip:7*k,bfont:Math.max(8,Math.round(13*k)),bline:Math.max(1.2,1.8*k),line:Math.max(0.9,sz*0.2)};
+}
 const C_B='#FF0000',C_S='#0000FF'; // B: 빨강, S: 파랑 (첨부 이미지 색)
 
 Chart.register({id:'ann',afterDraw(chart){
@@ -566,6 +576,7 @@ Chart.register({id:'ann',afterDraw(chart){
   if(!o||!o.list)return;
   const{ctx,scales,chartArea}=chart;
   const x=scales.x,y=scales.y;
+  const G=markGeom(pitchOf(chart)); // 이 차트의 캔들 폭에 맞춘 표식 크기
   ctx.save();
   ctx.beginPath();ctx.rect(chartArea.left,chartArea.top,chartArea.right-chartArea.left,chartArea.bottom-chartArea.top);ctx.clip(); // 차트 영역 밖은 그리지 않음
   for(const a of o.list){
@@ -622,39 +633,27 @@ Chart.register({id:'ann',afterDraw(chart){
       ctx.textBaseline='middle';
       ctx.fillText(a.text,bx+padX,by+boxH/2+1);
     }else if(a.t==='bs'){ // 내 매수(B)·매도(S): 끝이 캔들을 향한 오각형 + 글자 (B: 캔들 아래, S: 캔들 위)
-      const cx=x.getPixelForValue(a.xi),py=y.getPixelForValue(a.yi),gap=GAP0+(a.extra||0);
-      const w=BS_W/2,dir=a.buy?1:-1,tipY=py+dir*gap,shY=tipY+dir*BS_TIP,endY=tipY+dir*BS_H;
+      const cx=x.getPixelForValue(a.xi),py=y.getPixelForValue(a.yi),gap=G.gap+(a.stack||0)*G.stack;
+      const w=G.bw/2,dir=a.buy?1:-1,tipY=py+dir*gap,shY=tipY+dir*G.btip,endY=tipY+dir*G.bh;
       ctx.beginPath();ctx.moveTo(cx,tipY);ctx.lineTo(cx+w,shY);ctx.lineTo(cx+w,endY);ctx.lineTo(cx-w,endY);ctx.lineTo(cx-w,shY);ctx.closePath();
-      ctx.fillStyle='#fff';ctx.fill();
-      ctx.lineWidth=1.8;ctx.lineJoin='miter';ctx.strokeStyle=a.cl;ctx.stroke();
-      ctx.fillStyle=a.cl;ctx.font='bold 13px -apple-system,BlinkMacSystemFont,"Malgun Gothic",sans-serif';
+      ctx.fillStyle='rgba(255,255,255,0.82)';ctx.fill();   // 뒤의 선·캔들이 비쳐 보이도록 약간 투명
+      ctx.lineWidth=G.bline;ctx.lineJoin='miter';ctx.strokeStyle=a.cl;ctx.stroke();
+      ctx.fillStyle=a.cl;ctx.font='bold '+G.bfont+'px -apple-system,BlinkMacSystemFont,"Malgun Gothic",sans-serif';
       ctx.textAlign='center';ctx.textBaseline='middle';
       ctx.fillText(a.buy?'B':'S',cx,(shY+endY)/2+0.5);
       ctx.textAlign='start';
     }else if(a.t==='arrow'){
-      const px_=x.getPixelForValue(a.xi),py=y.getPixelForValue(a.yi),sz=(8/3)*2*(a.scale||1); // 신호 화살표는 기존의 2배 크기
-      const gap=GAP0+(a.extra||0); // extra: 같은 자리에 다른 화살표가 이미 있으면 그만큼 더 아래/위로
+      const px_=x.getPixelForValue(a.xi),py=y.getPixelForValue(a.yi),sz=G.sz*(a.scale||1);
+      const gap=G.gap+(a.stack||0)*G.stack; // stack: 같은 칸에 다른 표식이 이미 있으면 그만큼 더 아래/위로
       const ec=a.edge||a.cl;
-      ctx.lineJoin='round';
+      ctx.lineJoin='round';ctx.fillStyle=a.cl;ctx.strokeStyle=ec;ctx.lineWidth=G.line; // 흰 테두리 없이 색 채움 + 얇은 같은 색 테두리 (뒤의 선·캔들이 가려지지 않음)
       if(a.tri){ // 줄기 없는 삼각형
-        const s2=sz*1.5,tipY=a.up?py+gap:py-gap,by=a.up?tipY+s2*1.5:tipY-s2*1.5;
-        ctx.beginPath();ctx.moveTo(px_,tipY);ctx.lineTo(px_-s2,by);ctx.lineTo(px_+s2,by);ctx.closePath();
-        ctx.fillStyle='#fff';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#fff';ctx.stroke();
-        ctx.fillStyle=a.cl;ctx.fill();ctx.lineWidth=1.5;ctx.strokeStyle=ec;ctx.stroke();
-      }else if(a.up){
-        const tipY=py+gap,by=tipY+sz*1.8;
-        ctx.beginPath();ctx.moveTo(px_,tipY);ctx.lineTo(px_-sz,by);ctx.lineTo(px_+sz,by);ctx.closePath();
-        ctx.fillStyle='#fff';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#fff';ctx.stroke();
-        ctx.fillStyle=a.cl;ctx.fill();ctx.lineWidth=1.5;ctx.strokeStyle=ec;ctx.stroke();
-        ctx.beginPath();ctx.moveTo(px_,by);ctx.lineTo(px_,by+sz);ctx.lineWidth=3;ctx.strokeStyle='#fff';ctx.stroke();
-        ctx.lineWidth=1.5;ctx.strokeStyle=ec;ctx.stroke();
+        const s2=sz*1.15,tipY=a.up?py+gap:py-gap,by=a.up?tipY+s2*1.5:tipY-s2*1.5;
+        ctx.beginPath();ctx.moveTo(px_,tipY);ctx.lineTo(px_-s2,by);ctx.lineTo(px_+s2,by);ctx.closePath();ctx.fill();ctx.stroke();
       }else{
-        const tipY=py-gap,by=tipY-sz*1.8;
-        ctx.beginPath();ctx.moveTo(px_,tipY);ctx.lineTo(px_-sz,by);ctx.lineTo(px_+sz,by);ctx.closePath();
-        ctx.fillStyle='#fff';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#fff';ctx.stroke();
-        ctx.fillStyle=a.cl;ctx.fill();ctx.lineWidth=1.5;ctx.strokeStyle=ec;ctx.stroke();
-        ctx.beginPath();ctx.moveTo(px_,by);ctx.lineTo(px_,by-sz);ctx.lineWidth=3;ctx.strokeStyle='#fff';ctx.stroke();
-        ctx.lineWidth=1.5;ctx.strokeStyle=ec;ctx.stroke();
+        const d=a.up?1:-1,tipY=py+d*gap,by=tipY+d*sz*1.8;
+        ctx.beginPath();ctx.moveTo(px_,tipY);ctx.lineTo(px_-sz,by);ctx.lineTo(px_+sz,by);ctx.closePath();ctx.fill();ctx.stroke();
+        ctx.beginPath();ctx.moveTo(px_,by);ctx.lineTo(px_,by+d*sz);ctx.lineWidth=Math.max(1,G.line*1.4);ctx.stroke();
       }
     }
   }
@@ -752,20 +751,20 @@ KEYS.forEach(k=>{
 });
 
 // 한 봉에 달린 표식이 캔들 위·아래로 차지하는 높이(px) — 차트 끝에서 잘리지 않게 가격 범위 여백을 정할 때 사용
-function needPx(inst,key,k){
+function needPx(inst,key,k,G){
   const o=inst.slotOwn[k];
   if(o<0)return{up:0,down:0};
   const ix=inst.ind;let up=0,down=0;
   const sUp=ix.ssig[o]?1:0;
-  if(sUp)up=Math.max(up,GAP0+ARROW_LEN);                // 매도신호 ▼
+  if(sUp)up=Math.max(up,G.gap+G.arrowLen);                    // 매도신호 ▼
   const nDown=(ix.pb[o]?1:0)+(ix.bsig[o]?1:0)+(ix.rsig[o]?1:0);
-  if(nDown)down=GAP0+(nDown-1)*STACK_PX+ARROW_LEN;      // 눌림목·핑크·빨강 표식
+  if(nDown)down=G.gap+(nDown-1)*G.stack+G.arrowLen;           // 눌림목·핑크·빨강 표식
   for(const t of trades){
     if(t.sym!==key||t.k!==k)continue;
-    if(t.buy)down=Math.max(down,GAP0+nDown*STACK_PX+BS_H);   // 내 매수 B
-    else up=Math.max(up,GAP0+sUp*STACK_PX+BS_H);             // 내 매도 S
+    if(t.buy)down=Math.max(down,G.gap+nDown*G.stack+G.bh);    // 내 매수 B
+    else up=Math.max(up,G.gap+sUp*G.stack+G.bh);              // 내 매도 S
   }
-  return{up:up>0?up+5:0,down:down>0?down+5:0}; // +5px: 테두리 두께·화면 크기 변화에 대한 안전 여백
+  return{up:up>0?up+3:0,down:down>0?down+3:0}; // +3px: 테두리 두께 등에 대한 안전 여백
 }
 function buildPA(key){
   const inst=I[key],list=[],marks=[],s0=base+vs(),pad=padOff(); // marks: 화살표·삼각형·점은 선 위에 그리기 위해 따로 모았다가 선 다음에 추가
@@ -788,9 +787,9 @@ function buildPA(key){
     // 매수신호: 핑크 ▲ (눌림목·지지점 접촉 ▲가 같은 칸에 있으면 그 아래)
     // 캔들 아래 쌓이는 순서(가까운 것부터): 눌림목(주황 ▲) → 매수(초입더블핑크,상승파동)(핑크 ▲) → 매수(하락 후, 상승초입)(빨간 삼각형) → 내 매수
     // 매수(초입더블핑크,상승파동): 핑크 ▲ (눌림목 ▲ 바로 아래)
-    if(inst.ind.bsig[o])marks.push({t:'arrow',xi:li,yi:c.l,cl:C_BUYSIG,up:true,extra:(inst.ind.pb[o]?1:0)*STACK_PX});
+    if(inst.ind.bsig[o])marks.push({t:'arrow',xi:li,yi:c.l,cl:C_BUYSIG,up:true,stack:(inst.ind.pb[o]?1:0)});
     // 매수(하락 후, 상승초입): 빨간 삼각형 (눌림목·핑크 ▲ 아래)
-    if(inst.ind.rsig[o])marks.push({t:'arrow',xi:li,yi:c.l,cl:C_RED,up:true,tri:true,extra:((inst.ind.pb[o]?1:0)+(inst.ind.bsig[o]?1:0))*STACK_PX});
+    if(inst.ind.rsig[o])marks.push({t:'arrow',xi:li,yi:c.l,cl:C_RED,up:true,tri:true,stack:((inst.ind.pb[o]?1:0)+(inst.ind.bsig[o]?1:0))});
   }
   // 시작지점(얇은 파란선): 새 날짜 첫 봉 기준 가격을 그 날짜 내내 유지
   const stPts=[];
@@ -824,7 +823,7 @@ function buildPA(key){
     const yi=bar?(t.buy?bar.l:bar.h):t.price;
     // 같은 칸에 눌림목·매수(초입더블핑크,상승파동)·매수(하락 후, 상승초입) 표시가 있으면 내 매수(B)는 그 아래로, 매도신호 ▼가 있으면 내 매도(S)는 그 위로 비켜서 겹치지 않게 표시
     const stack=o>=0?(t.buy?((inst.ind.pb[o]===1?1:0)+(inst.ind.rsig[o]===1?1:0)+(inst.ind.bsig[o]===1?1:0)):(inst.ind.ssig[o]===1?1:0)):0;
-    list.push({t:'bs',buy:t.buy,xi:pad+(t.k-s0),yi,cl:t.buy?C_B:C_S,extra:stack*STACK_PX}); // 내 매수(B)·매도(S): 맨 위에 표시
+    list.push({t:'bs',buy:t.buy,xi:pad+(t.k-s0),yi,cl:t.buy?C_B:C_S,stack}); // stack: 같은 칸의 신호 표식 개수(그만큼 비켜서 표시) // 내 매수(B)·매도(S): 맨 위에 표시
   });
   // 날짜 분기선
   days.forEach(D=>{
@@ -858,10 +857,10 @@ function refresh(){
       // 표식(화살표·B/S·점)이 차트 위/아래 끝에서 잘리지 않도록, 표식이 실제로 달린 봉을 기준으로 필요한 px 여백을 가격 여백으로 환산
       const Hpx=(pc.chartArea&&pc.chartArea.bottom>pc.chartArea.top)?(pc.chartArea.bottom-pc.chartArea.top):Math.max(120,(pc.height||260)-30);
       const Hp=Hpx*(1-BAND),bandPx=Hpx*BAND*0.5; // 아래쪽 표식은 맨 아래 신호 막대 영역과 절반까지 겹쳐도 됨
-      const needs=[];
+      const needs=[],G=markGeom(pitchOf(pc));
       for(let k=s0;k<=cur;k++){
         const o=inst.slotOwn[k];if(o<0)continue;
-        const nd=needPx(inst,key,k);
+        const nd=needPx(inst,key,k,G);
         if(nd.up>0||nd.down>0)needs.push({h:inst.own[o].h,l:inst.own[o].l,up:nd.up,down:Math.max(0,nd.down-bandPx)});
       }
       let padT=pd,padB=pd;
