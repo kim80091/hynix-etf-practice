@@ -62,6 +62,7 @@ button:active{transform:scale(.94);filter:brightness(.9);box-shadow:inset 0 1px 
 .cwrap{position:relative;}
 .cwrap.pc{height:270px;}
 .cwrap.sp{height:34px;}
+.cwrap.by{height:40px;}
 .cwrap.sl{height:70px;}
 .cwrap canvas{position:absolute;top:0;left:0;width:100%;height:100%;}
 .ddrow{display:flex;justify-content:space-between;padding:2px 8px 0;font-size:11px;color:#888;}
@@ -106,6 +107,7 @@ button:active{transform:scale(.94);filter:brightness(.9);box-shadow:inset 0 1px 
   .banner{font-size:11px;}
   .cwrap.pc{height:230px;}
   .cwrap.sp{height:24px;}
+  .cwrap.by{height:30px;}
   .cwrap.sl{height:46px;}
   .ddrow{padding:0 8px;font-size:10px;line-height:13px;}
   .ddval{font-size:11px;}
@@ -196,6 +198,7 @@ button:active{transform:scale(.94);filter:brightness(.9);box-shadow:inset 0 1px 
     <span class="ileg"><span style="color:#F5A623;">MA5</span> <span style="color:#2962FF;font-weight:900;">─</span><span style="color:#1E4FD8;">시작지점</span> <span style="color:#FFD400;font-weight:900;text-shadow:0 0 1px #B38F00;">━</span><span style="color:#A67F00;">고점선</span> <span style="color:#00FFFF;font-weight:900;text-shadow:0 0 1px #0097A7;">━</span><span style="color:#00838F;">저점선</span> <span style="color:#0000FF;">▼매도신호</span> <span style="color:#FF8C00;">▲눌림목선신호</span> <span style="color:#FF0000;">▲매수(하락 후, 상승초입)</span> <span style="color:#FF4FA3;">▲매수(초입더블핑크,상승파동)</span></span>
   </div>
   <div class="cbox"><div class="cwrap pc"><canvas id="cPriceK"></canvas></div></div>
+  <div class="cbox"><div class="ddrow"><span>매수 신호 <b style="color:#FF0000;">■ 하락 후</b> <b style="color:#FF4FA3;">■ 더블핑크</b> <span style="color:#999;">(겹치면 핑크)</span></span><span class="ddval" id="vByK">-</span></div><div class="cwrap by"><canvas id="cByK"></canvas></div></div>
   <div class="cbox"><div class="ddrow"><span>MA5 경사</span><span class="ddval" id="vSlK">-</span></div><div class="cwrap sl"><canvas id="cSlK"></canvas></div></div>
   <div class="tgrp" id="grpK"><span class="tname" style="color:#D93025;">KODEX 레버리지</span>
     <button class="g" id="btnBuyK">매수</button>
@@ -212,6 +215,7 @@ button:active{transform:scale(.94);filter:brightness(.9);box-shadow:inset 0 1px 
     <span class="zoomgrp"><span class="zl2">가로</span><button class="zb" id="zMinusS" title="봉 적게 (가로 확대)">－</button><span class="zl" id="zLblS">60봉</span><button class="zb" id="zPlusS" title="봉 많이 (가로 축소)">＋</button></span>
   </div>
   <div class="cbox"><div class="cwrap pc"><canvas id="cPriceS"></canvas></div></div>
+  <div class="cbox"><div class="ddrow"><span>매수 신호 <b style="color:#FF0000;">■ 하락 후</b> <b style="color:#FF4FA3;">■ 더블핑크</b> <span style="color:#999;">(겹치면 핑크)</span></span><span class="ddval" id="vByS">-</span></div><div class="cwrap by"><canvas id="cByS"></canvas></div></div>
   <div class="cbox"><div class="ddrow"><span>MA5 경사</span><span class="ddval" id="vSlS">-</span></div><div class="cwrap sl"><canvas id="cSlS"></canvas></div></div>
   <div class="tgrp" id="grpS"><span class="tname" style="color:#2F6FD3;">SOL 인버스2X</span>
     <button class="g" id="btnBuyS">매수</button>
@@ -278,7 +282,7 @@ const META={
   S:{label:'SOL 인버스2X',color:'#2F6FD3'}
 };
 
-function mkInst(key){return{key,fileName:'',own:[],ind:null,slotOwn:[],lastOwn:[],pc:null,sl:null,secRaw:new Map(),secCache:new Map(),live:null};}
+function mkInst(key){return{key,fileName:'',own:[],ind:null,slotOwn:[],lastOwn:[],pc:null,by:null,sl:null,secRaw:new Map(),secCache:new Map(),live:null};}
 const I={K:mkInst('K'),S:mkInst('S')};
 // ── 초 단위 데이터(내장): 분 단위로 묶여 있음 {날짜:[[ "HH:MM",[[초,시,고,저,종] 또는 [초,가격]] ],...]} ──
 const SECDATA=window.HXP_SEC||null;
@@ -397,7 +401,7 @@ function buildInd(own){
   const C=own.map(x=>x.c);
   const TB=own.map(x=>Math.max(x.o,x.c)); // TB=Max(O,C): 몸통 윗끝
   const BB=own.map(x=>Math.min(x.o,x.c)); // BB=Min(O,C): 몸통 아랫끝
-  const ind={ma5:[],ma30:[],r5:[],r30:[],up:[],slope:[],pb:[],hsup:[],sup:[],start:[],bsig:[],rsig:[],ssig:[]};
+  const ind={ma5:[],ma30:[],r5:[],r30:[],up:[],slope:[],pb:[],hsup:[],sup:[],start:[],bsig:[],rsig:[],ssig:[],buyA:[],buyD:[],buyV:[]};
   let startLast=null; // 시작지점: 가장 최근 새 날짜 첫 봉에서 저장해 둔 값
   for(let i=0;i<n;i++){
     const M0=avgAt(C,5,i),M1=avgAt(C,5,i-1),M2=avgAt(C,5,i-2);
@@ -435,6 +439,16 @@ function buildInd(own){
     // 매수(하락 후, 상승초입): SIG1(=MA5 저점반전)==1 and CNT2>=1, CNT2=sum(SIG2,3)=이번 봉 포함 최근 3개 봉의 SIG2 개수
     const cnt2=dbl+(i>=1?ind.bsig[i-1]:0)+(i>=2?ind.bsig[i-2]:0);
     ind.rsig.push((sig2===1&&cnt2>=1)?1:0);
+    // ── 매수 신호 막대 지표 ──
+    // COND2 = ANGLE>=5 : 이번 봉 MA5 기울기 각도(부호 있는 값)가 5도 이상
+    const angNow=(M0!==null&&M1!==null&&M1!==0)?Math.atan((M0-M1)/M1*100)*180/3.141592:null;
+    const cond2=angNow!==null&&angNow>=5;
+    // 매수(하락 후) = COND1(MA5 저점반전 and 최근 3봉에 SIG2) and COND2
+    const buyA=(ind.rsig[i]===1&&cond2)?1:0;
+    // 매수(더블핑크) = SIGNOW(이번 봉 SIG2) and SIGPREV(직전 봉도 SIG2) and COND2
+    const buyD=(dbl===1&&i>=1&&ind.bsig[i-1]===1&&cond2)?1:0;
+    ind.buyA.push(buyA);ind.buyD.push(buyD);
+    ind.buyV.push(buyD?2:(buyA?1:0)); // 1=하락 후(빨강), 2=더블핑크(핑크) — 겹치면 더블핑크
     // 매도신호: 직전 봉 MA5 기울기가 오름(VP>0)이고, 이번 봉 기울기(V0)가 그보다 줄었거나 꺾였으며(V0<VP), 음봉(C<O)
     //   V0/VP = 각각 이번 봉·직전 봉의 MA5 기울기 각도 중 양수일 때만의 값(아니면 0)
     let sV0=0,sVP=0;
@@ -732,6 +746,8 @@ function mkSlopePanel(id){
 }
 KEYS.forEach(k=>{
   I[k].pc=mkPriceChart('cPrice'+k);
+  I[k].by=mkBarPanel('cBy'+k);
+  I[k].by.options.scales.y.min=0;I[k].by.options.scales.y.max=1; // 신호가 나온 봉은 막대가 패널 높이를 꽉 채움
   I[k].sl=mkSlopePanel('cSl'+k);
 });
 
@@ -874,6 +890,13 @@ function refresh(){
     if(zyEl)zyEl.textContent=(yman.K===null&&yman.S===null)?'자동':((yLvl>0?'+':'')+yLvl);
 
 
+    // 매수 신호 막대: 신호가 나온 봉에 높이 1 — 하락 후=빨강, 더블핑크=핑크 (겹치면 핑크) / 오른쪽 숫자는 현재 봉 값
+    const bv=vdata(k=>valAt(inst,'buyV',k));
+    inst.by.data.labels=lbls;
+    inst.by.data.datasets[0].data=bv.map(v=>v?1:v);
+    inst.by.data.datasets[0].backgroundColor=bv.map(v=>v===2?C_BUYSIG:(v===1?C_RED:'rgba(0,0,0,0)'));
+    const byEl=document.getElementById('vBy'+key),byNow=valAt(inst,'buyV',cur);
+    if(byNow){byEl.textContent='1';byEl.style.color=byNow===2?C_BUYSIG:C_RED;}else{byEl.textContent='-';byEl.style.color='#555';}
     // MA5 경사 (각도, 양수만) — 주황 막대 / 오른쪽 숫자는 현재 값
     const slData=vdata(k=>valAt(inst,'slope',k));
     inst.sl.data.labels=lbls;
@@ -889,7 +912,7 @@ function refresh(){
     else{slEl.textContent=slNow===null?'-':'0°';slEl.style.color='#555';}
 
 
-    pc.update('none');inst.sl.update('none');
+    pc.update('none');inst.by.update('none');inst.sl.update('none');
   });
   updateUI();
 }
@@ -1046,7 +1069,7 @@ function doSell(sym){
 // ══ 초 단위 재생 ═══════════════════════════════════════════════════
 // 시장 시간을 1초씩 진행하면서, 그 초에 거래가 있으면 "지금 만들어지는 1분 캔들"의 시가·고가·저가·종가와 지표를 실시간으로 갱신한다.
 // 분이 끝나면 그 캔들을 1분봉으로 확정하고(초 데이터를 1분으로 묶은 값과 같음) 다음 분의 새 캔들을 시작한다.
-const IND_KEYS=['ma5','ma30','r5','r30','up','slope','pb','hsup','sup','start','bsig','rsig','ssig'];
+const IND_KEYS=['ma5','ma30','r5','r30','up','slope','pb','hsup','sup','start','bsig','rsig','ssig','buyA','buyD','buyV'];
 function liveInd(inst,o){ // 형성 중인 봉(own[o], 이미 부분값으로 바뀐 상태)의 지표를 직전 40봉과 함께 다시 계산
   const lo=Math.max(0,o-40);
   const win=inst.own.slice(lo,o+1).map(b=>({t:b.t,d:b.d,hm:b.hm,min:b.min,o:b.o,h:b.h,l:b.l,c:b.c,a:b.a}));
@@ -1220,7 +1243,7 @@ function setZoom(v){
   VIS=v;
   try{localStorage.setItem('hxp_vis',String(v));}catch(e){}
   KEYS.forEach(k=>{
-    [I[k].pc,I[k].sl].forEach(c=>{c.options.scales.x.max=VIS+VP-1;});
+    [I[k].pc,I[k].by,I[k].sl].forEach(c=>{c.options.scales.x.max=VIS+VP-1;});
   });
   ['T','S'].forEach(x=>{const el=document.getElementById('zLbl'+x);if(el)el.textContent=VIS+'봉';});
   if(tl.length){base=Math.max(0,dayStart-prefixFor(VIS));refresh();}
