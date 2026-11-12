@@ -195,10 +195,10 @@ button:active{transform:scale(.94);filter:brightness(.9);box-shadow:inset 0 1px 
   <div class="ihead">
     <span class="iname" style="color:#D93025;">KODEX SK</span>
     <span class="iprice" id="pxK">-</span><span class="ichg" id="chgK"></span><span class="ipos" id="posK"></span>
-    <span class="ileg"><span style="color:#F5A623;">MA5</span> <span style="color:#2962FF;font-weight:900;">─</span><span style="color:#1E4FD8;">시작지점</span> <span style="color:#FFD400;font-weight:900;text-shadow:0 0 1px #B38F00;">━</span><span style="color:#A67F00;">고점선</span> <span style="color:#00FFFF;font-weight:900;text-shadow:0 0 1px #0097A7;">━</span><span style="color:#00838F;">저점선</span> <span style="color:#0000FF;">▼매도신호</span> <span style="color:#FF8C00;">▲눌림목선신호</span> <span style="color:#FF0000;">▲매수(하락 후, 상승초입)</span> <span style="color:#FF4FA3;">▲매수(초입더블핑크,상승파동)</span></span>
+    <span class="ileg"><span style="color:#F5A623;">MA5</span> <span style="color:#2962FF;font-weight:900;">─</span><span style="color:#1E4FD8;">시작지점</span> <span style="color:#FFD400;font-weight:900;text-shadow:0 0 1px #B38F00;">━</span><span style="color:#A67F00;">고점선</span> <span style="color:#00FFFF;font-weight:900;text-shadow:0 0 1px #0097A7;">━</span><span style="color:#00838F;">저점선</span> <span style="color:#0000FF;">▼매도신호</span> <span style="color:#FF8000;">▲눌림목선신호</span> <span style="color:#A00A1E;">▲매수(하락 후, 상승초입)</span> <span style="color:#FF70C1;">▲매수(초입더블핑크,상승파동)</span></span>
   </div>
   <div class="cbox"><div class="cwrap pc"><canvas id="cPriceK"></canvas></div></div>
-  <div class="cbox"><div class="ddrow"><span>매수 신호 <b style="color:#FF0000;">■ 하락 후</b> <b style="color:#FF4FA3;">■ 더블핑크</b> <span style="color:#999;">(겹치면 핑크)</span></span><span class="ddval" id="vByK">-</span></div><div class="cwrap by"><canvas id="cByK"></canvas></div></div>
+  <div class="cbox"><div class="ddrow"><span>매수 신호 <b style="color:#A00A1E;">■ 하락 후</b> <b style="color:#FF70C1;">■ 더블핑크</b> <span style="color:#999;">(겹치면 핑크)</span></span><span class="ddval" id="vByK">-</span></div><div class="cwrap by"><canvas id="cByK"></canvas></div></div>
   <div class="cbox"><div class="ddrow"><span>MA5 경사</span><span class="ddval" id="vSlK">-</span></div><div class="cwrap sl"><canvas id="cSlK"></canvas></div></div>
   <div class="tgrp" id="grpK"><span class="tname" style="color:#D93025;">KODEX 레버리지</span>
     <button class="g" id="btnBuyK">매수</button>
@@ -215,7 +215,7 @@ button:active{transform:scale(.94);filter:brightness(.9);box-shadow:inset 0 1px 
     <span class="zoomgrp"><span class="zl2">가로</span><button class="zb" id="zMinusS" title="봉 적게 (가로 확대)">－</button><span class="zl" id="zLblS">60봉</span><button class="zb" id="zPlusS" title="봉 많이 (가로 축소)">＋</button></span>
   </div>
   <div class="cbox"><div class="cwrap pc"><canvas id="cPriceS"></canvas></div></div>
-  <div class="cbox"><div class="ddrow"><span>매수 신호 <b style="color:#FF0000;">■ 하락 후</b> <b style="color:#FF4FA3;">■ 더블핑크</b> <span style="color:#999;">(겹치면 핑크)</span></span><span class="ddval" id="vByS">-</span></div><div class="cwrap by"><canvas id="cByS"></canvas></div></div>
+  <div class="cbox"><div class="ddrow"><span>매수 신호 <b style="color:#A00A1E;">■ 하락 후</b> <b style="color:#FF70C1;">■ 더블핑크</b> <span style="color:#999;">(겹치면 핑크)</span></span><span class="ddval" id="vByS">-</span></div><div class="cwrap by"><canvas id="cByS"></canvas></div></div>
   <div class="cbox"><div class="ddrow"><span>MA5 경사</span><span class="ddval" id="vSlS">-</span></div><div class="cwrap sl"><canvas id="cSlS"></canvas></div></div>
   <div class="tgrp" id="grpS"><span class="tname" style="color:#2F6FD3;">SOL 인버스2X</span>
     <button class="g" id="btnBuyS">매수</button>
@@ -547,12 +547,12 @@ const uC='#E24B4A',dC='#378ADD';
 const bC='#0F6E56',sC='#993556';
 const pC='#D93025',lC='#2F6FD3'; // 손익 표시: 수익=빨강, 손실=파랑
 const C_MA5REV='#FFD400',C_MA30REV='#39FF14',C_MA30UP='#E53935';
-const C_PULLBACK='#FF8C00'; // 눌림목 선신호 (주황)
+const C_PULLBACK='#FF8000'; // 눌림목 선신호 (주황)
 const C_SUPPORT='#00FFFF';  // 저점선 (시안)
 const C_START='#2962FF';    // 시작지점 (얇은 파랑)
 const C_HIGH='#FFD400';     // 고점선 (개나리색)
-const C_BUYSIG='#FF4FA3';   // 매수(초입더블핑크,상승파동) (핑크)
-const C_RED='#FF0000';      // 매수(하락 후, 상승초입) (빨강)
+const C_BUYSIG='#FF70C1';   // 매수(초입더블핑크,상승파동) (연한 핑크)
+const C_RED='#A00A1E';      // 매수(하락 후, 상승초입) (진한 빨강)
 const C_SELLSIG='#0000FF';  // 매도신호 (파랑, 첨부 이미지 색)
 const W_LEVEL=2.5;          // 저점선·고점선 굵기 (같은 굵기)
 const GAP0=18;          // 캔들(고가/저가)에서 첫 표식까지 거리(px)
