@@ -63,7 +63,6 @@ button:active{transform:scale(.94);filter:brightness(.9);box-shadow:inset 0 1px 
 .cwrap.pc{height:270px;}
 .cwrap.sp{height:34px;}
 .cwrap.by{height:40px;}
-.cwrap.sl{height:70px;}
 .cwrap canvas{position:absolute;top:0;left:0;width:100%;height:100%;}
 .ddrow{display:flex;justify-content:space-between;padding:2px 8px 0;font-size:11px;color:#888;}
 .ddval{font-size:13px;font-weight:700;color:#555;}
@@ -108,7 +107,6 @@ button:active{transform:scale(.94);filter:brightness(.9);box-shadow:inset 0 1px 
   .cwrap.pc{height:230px;}
   .cwrap.sp{height:24px;}
   .cwrap.by{height:30px;}
-  .cwrap.sl{height:46px;}
   .ddrow{padding:0 8px;font-size:10px;line-height:13px;}
   .ddval{font-size:11px;}
   .ihead{gap:3px 8px;}
@@ -195,11 +193,10 @@ button:active{transform:scale(.94);filter:brightness(.9);box-shadow:inset 0 1px 
   <div class="ihead">
     <span class="iname" style="color:#D93025;">KODEX SK</span>
     <span class="iprice" id="pxK">-</span><span class="ichg" id="chgK"></span><span class="ipos" id="posK"></span>
-    <span class="ileg"><span style="color:#F5A623;">MA5</span> <span style="color:#2962FF;font-weight:900;">─</span><span style="color:#1E4FD8;">시작지점</span> <span style="color:#FFD400;font-weight:900;text-shadow:0 0 1px #B38F00;">━</span><span style="color:#A67F00;">고점선</span> <span style="color:#00FFFF;font-weight:900;text-shadow:0 0 1px #0097A7;">━</span><span style="color:#00838F;">저점선</span> <span style="color:#0000FF;">▼매도신호</span> <span style="color:#FF8000;">▲눌림목선신호</span> <span style="color:#A00A1E;">▲매수(하락 후, 상승초입)</span> <span style="color:#FF70C1;">▲매수(초입더블핑크,상승파동)</span></span>
+    <span class="ileg"><span style="color:#F5A623;">MA5</span> <span style="color:#2962FF;font-weight:900;">─</span><span style="color:#1E4FD8;">시작지점</span> <span style="color:#FFD400;font-weight:900;text-shadow:0 0 1px #B38F00;">━</span><span style="color:#A67F00;">고점선</span> <span style="color:#00FFFF;font-weight:900;text-shadow:0 0 1px #0097A7;">━</span><span style="color:#00838F;">저점선</span> <span style="color:#0000FF;">▼매도신호</span> <span style="color:#FF8000;">▲눌림목선신호</span> <span style="color:#A00A1E;">▲매수(하락 후, 상승초입)</span> <span style="color:#FF70C1;">▲매수(더블핑크, 상승파동)</span></span>
   </div>
   <div class="cbox"><div class="cwrap pc"><canvas id="cPriceK"></canvas></div></div>
   <div class="cbox"><div class="ddrow"><span>매수 신호 <b style="color:#A00A1E;">■ 하락 후</b> <b style="color:#FF70C1;">■ 더블핑크</b> <span style="color:#999;">(겹치면 핑크)</span></span><span class="ddval" id="vByK">-</span></div><div class="cwrap by"><canvas id="cByK"></canvas></div></div>
-  <div class="cbox"><div class="ddrow"><span>MA5 경사</span><span class="ddval" id="vSlK">-</span></div><div class="cwrap sl"><canvas id="cSlK"></canvas></div></div>
   <div class="tgrp" id="grpK"><span class="tname" style="color:#D93025;">KODEX 레버리지</span>
     <button class="g" id="btnBuyK">매수</button>
     <button class="r" id="btnSellK">매도</button>
@@ -216,7 +213,6 @@ button:active{transform:scale(.94);filter:brightness(.9);box-shadow:inset 0 1px 
   </div>
   <div class="cbox"><div class="cwrap pc"><canvas id="cPriceS"></canvas></div></div>
   <div class="cbox"><div class="ddrow"><span>매수 신호 <b style="color:#A00A1E;">■ 하락 후</b> <b style="color:#FF70C1;">■ 더블핑크</b> <span style="color:#999;">(겹치면 핑크)</span></span><span class="ddval" id="vByS">-</span></div><div class="cwrap by"><canvas id="cByS"></canvas></div></div>
-  <div class="cbox"><div class="ddrow"><span>MA5 경사</span><span class="ddval" id="vSlS">-</span></div><div class="cwrap sl"><canvas id="cSlS"></canvas></div></div>
   <div class="tgrp" id="grpS"><span class="tname" style="color:#2F6FD3;">SOL 인버스2X</span>
     <button class="g" id="btnBuyS">매수</button>
     <button class="r" id="btnSellS">매도</button>
@@ -282,7 +278,7 @@ const META={
   S:{label:'SOL 인버스2X',color:'#2F6FD3'}
 };
 
-function mkInst(key){return{key,fileName:'',own:[],ind:null,slotOwn:[],lastOwn:[],pc:null,by:null,sl:null,secRaw:new Map(),secCache:new Map(),live:null};}
+function mkInst(key){return{key,fileName:'',own:[],ind:null,slotOwn:[],lastOwn:[],pc:null,by:null,secRaw:new Map(),secCache:new Map(),live:null};}
 const I={K:mkInst('K'),S:mkInst('S')};
 // ── 초 단위 데이터(내장): 분 단위로 묶여 있음 {날짜:[[ "HH:MM",[[초,시,고,저,종] 또는 [초,가격]] ],...]} ──
 const SECDATA=window.HXP_SEC||null;
@@ -429,7 +425,8 @@ function buildInd(own){
       startLast=(o_>=own[i-1].c)?Math.min(o_,c_):Math.max(o_,c_);
     }
     ind.start.push(startLast);
-    // 매수(초입더블핑크,상승파동) = SIG2: 직전 봉 MA5 기울기가 내림(VP<0)이고, 이번 봉 기울기(V0)가 그보다 덜 내려가거나 올라섰으며(V0>VP), 양봉(C>O)
+    // 매수(더블핑크, 상승파동) 화살표 = if(VP<0 and V0>VP and C>O,1,0): 직전 봉 MA5 기울기가 내림(VP<0)이고, 이번 봉 기울기(V0)가 그보다 덜 내려가거나 올라섰으며(V0>VP), 양봉(C>O)
+    //   ※ 아래 '매수 신호' 막대 지표의 같은 이름 신호는 이 조건에 SIGPREV(직전 봉도 같은 조건)와 ANGLE>=5 가 더 붙은 더 엄격한 수식
     //   (V0/VP = 각각 이번 봉·직전 봉의 MA5 기울기 각도 중 음수일 때만의 값, 아니면 0)
     let bV0=0,bVP=0;
     if(M0!==null&&M1!==null&&M1!==0){const a0=Math.atan((M0-M1)/M1*100)*180/3.141592;bV0=a0<0?a0:0;}
@@ -551,7 +548,7 @@ const C_PULLBACK='#FF8000'; // 눌림목 선신호 (주황)
 const C_SUPPORT='#00FFFF';  // 저점선 (시안)
 const C_START='#2962FF';    // 시작지점 (얇은 파랑)
 const C_HIGH='#FFD400';     // 고점선 (개나리색)
-const C_BUYSIG='#FF70C1';   // 매수(초입더블핑크,상승파동) (연한 핑크)
+const C_BUYSIG='#FF70C1';   // 매수(더블핑크, 상승파동) (연한 핑크)
 const C_RED='#A00A1E';      // 매수(하락 후, 상승초입) (진한 빨강)
 const C_SELLSIG='#0000FF';  // 매도신호 (파랑, 첨부 이미지 색)
 const W_LEVEL=2.5;          // 저점선·고점선 굵기 (같은 굵기)
@@ -571,6 +568,25 @@ function markGeom(pitch){
 }
 const C_B='#FF0000',C_S='#0000FF'; // B: 빨강, S: 파랑 (첨부 이미지 색)
 
+// ── MA5 경사 배경 막대: HTS 화면처럼 가격 차트의 '가장 뒷면'에 연한 막대로 깔림 ──
+//   beforeDraw 는 Chart.js 가 눈금선·선·캔들보다 먼저 그리는 지점이라, 이 위에 모든 것이 올라감.
+//   높이: top(보이는 봉의 최대 각도를 10° 단위로 올린 값)이 차트 높이의 90%
+const C_SLOPEBG='rgba(255,176,102,0.5)', SLOPE_BG_H=0.9; // 연한 주황(살구색), 최대 높이는 차트 높이의 90%
+Chart.register({id:'slopeBg',beforeDraw(chart){
+  const o=chart.options.plugins&&chart.options.plugins.slopeBg;
+  if(!o||!o.list||!o.list.length||!(o.top>0))return;
+  const{ctx,scales,chartArea}=chart,x=scales&&scales.x;
+  if(!x||!chartArea)return;
+  const H=chartArea.bottom-chartArea.top,w=Math.abs(x.getPixelForValue(1)-x.getPixelForValue(0))*0.86;
+  ctx.save();
+  ctx.beginPath();ctx.rect(chartArea.left,chartArea.top,chartArea.right-chartArea.left,H);ctx.clip();
+  ctx.fillStyle=C_SLOPEBG;
+  for(const b of o.list){
+    const h=Math.min(1,b.v/o.top)*H*SLOPE_BG_H,cx=x.getPixelForValue(b.xi);
+    ctx.fillRect(cx-w/2,chartArea.bottom-h,w,h);
+  }
+  ctx.restore();
+}});
 Chart.register({id:'ann',afterDraw(chart){
   const o=chart.options.plugins&&chart.options.plugins.ann;
   if(!o||!o.list)return;
@@ -709,7 +725,7 @@ function mkPriceChart(id){
         },
         y:{position:'right',ticks:{font:{size:11},padding:6,callback:v=>Math.round(v).toLocaleString('ko-KR')},afterFit:s=>{s.width=YW;},grid:{color:'rgba(128,128,128,.1)'}}
       },
-      plugins:{legend:{display:false},tooltip:{enabled:false},ann:{list:[]}}
+      plugins:{legend:{display:false},tooltip:{enabled:false},ann:{list:[]},slopeBg:{list:[],top:10}}
     },plugins:[]
   });
 }
@@ -728,26 +744,10 @@ function mkBarPanel(id){
     },plugins:[]
   });
 }
-function mkSlopePanel(id){
-  return new Chart(document.getElementById(id),{
-    type:'bar',
-    data:{labels:[],datasets:[{label:id,data:[],backgroundColor:[],barPercentage:.9,categoryPercentage:.9}]},
-    options:{
-      responsive:true,maintainAspectRatio:false,animation:false,
-      layout:{padding:{left:4,right:4}},
-      scales:{
-        x:{ticks:{display:false},grid:{display:false},min:0,max:VIS+VP-1},
-        y:{position:'right',min:0,max:10,ticks:{font:{size:10},padding:6,maxTicksLimit:3,callback:v=>Math.round(v)+'°'},afterFit:s=>{s.width=YW;},grid:{color:'rgba(128,128,128,.1)'}}
-      },
-      plugins:{legend:{display:false},tooltip:{enabled:false}}
-    },plugins:[]
-  });
-}
 KEYS.forEach(k=>{
   I[k].pc=mkPriceChart('cPrice'+k);
   I[k].by=mkBarPanel('cBy'+k);
   I[k].by.options.scales.y.min=0;I[k].by.options.scales.y.max=1; // 신호가 나온 봉은 막대가 패널 높이를 꽉 채움
-  I[k].sl=mkSlopePanel('cSl'+k);
 });
 
 // 한 봉에 달린 표식이 캔들 위·아래로 차지하는 높이(px) — 차트 끝에서 잘리지 않게 가격 범위 여백을 정할 때 사용
@@ -767,13 +767,15 @@ function needPx(inst,key,k,G){
   return{up:up>0?up+3:0,down:down>0?down+3:0}; // +3px: 테두리 두께 등에 대한 안전 여백
 }
 function buildPA(key){
-  const inst=I[key],list=[],marks=[],s0=base+vs(),pad=padOff(); // marks: 화살표·삼각형·점은 선 위에 그리기 위해 따로 모았다가 선 다음에 추가
+  const inst=I[key],list=[],marks=[],cds=[],s0=base+vs(),pad=padOff();
+  // 그리는 순서(뒤 → 앞): 신호 막대 → 저점선·고점선 → 캔들(몸통·꼬리) → 시작지점선 → 화살표·삼각형 → 내 B/S
+  //   cds: 캔들은 모았다가 고점선·저점선을 그린 다음에 추가해서 선 위에 보이게 함 / marks: 화살표·삼각형은 맨 마지막 쪽
   for(let k=s0;k<=cur;k++){
     const o=inst.slotOwn[k];
     if(o<0)continue;
     const c=inst.own[o],li=pad+(k-s0),up=c.c>=c.o;
-    list.push({t:'box',x1:li-.35,x2:li+.35,y1:Math.min(c.o,c.c),y2:Math.max(c.o,c.c),bg:up?uC:dC});
-    list.push({t:'wick',xi:li,hi:c.h,lo:c.l,cl:up?uC:dC});
+    cds.push({t:'box',x1:li-.35,x2:li+.35,y1:Math.min(c.o,c.c),y2:Math.max(c.o,c.c),bg:up?uC:dC});
+    cds.push({t:'wick',xi:li,hi:c.h,lo:c.l,cl:up?uC:dC});
     // 차트 하단 신호 막대 3개 (키 큰 것부터 그려서 작은 것이 앞에 보이도록)
     if(inst.ind.r5[o])list.push({t:'sigbar',xi:li,v:1.5,cl:C_MA5REV});
     const r30=inst.ind.r30[o];
@@ -785,8 +787,8 @@ function buildPA(key){
     // 매도신호: 캔들 위쪽에 파란 ▼
     if(inst.ind.ssig[o])marks.push({t:'arrow',xi:li,yi:c.h,cl:C_SELLSIG,up:false});
     // 매수신호: 핑크 ▲ (눌림목·지지점 접촉 ▲가 같은 칸에 있으면 그 아래)
-    // 캔들 아래 쌓이는 순서(가까운 것부터): 눌림목(주황 ▲) → 매수(초입더블핑크,상승파동)(핑크 ▲) → 매수(하락 후, 상승초입)(빨간 삼각형) → 내 매수
-    // 매수(초입더블핑크,상승파동): 핑크 ▲ (눌림목 ▲ 바로 아래)
+    // 캔들 아래 쌓이는 순서(가까운 것부터): 눌림목(주황 ▲) → 매수(더블핑크, 상승파동)(핑크 ▲) → 매수(하락 후, 상승초입)(빨간 삼각형) → 내 매수
+    // 매수(더블핑크, 상승파동): 핑크 ▲ (눌림목 ▲ 바로 아래)
     if(inst.ind.bsig[o])marks.push({t:'arrow',xi:li,yi:c.l,cl:C_BUYSIG,up:true,stack:(inst.ind.pb[o]?1:0)});
     // 매수(하락 후, 상승초입): 빨간 삼각형 (눌림목·핑크 ▲ 아래)
     if(inst.ind.rsig[o])marks.push({t:'arrow',xi:li,yi:c.l,cl:C_RED,up:true,tri:true,stack:((inst.ind.pb[o]?1:0)+(inst.ind.bsig[o]?1:0))});
@@ -798,8 +800,7 @@ function buildPA(key){
     const v=o>=0?inst.ind.start[o]:null;
     stPts.push(v===null||v===undefined?null:[pad+(k-s0),v]);
   }
-  if(stPts.some(p=>p!==null))list.push({t:'pline',pts:stPts,cl:C_START,w:1.2});
-  // 저점선(시안, MA선보다 굵게): 캔들 위에 겹쳐서 표시. 봉이 없는 칸은 직전 값을 그대로 이어서 그림
+  // 저점선(시안, MA선보다 굵게): 캔들 뒤에 깔림. 봉이 없는 칸은 직전 값을 그대로 이어서 그림
   const supPts=[];
   for(let k=s0;k<=cur;k++){
     const o=inst.lastOwn[k];
@@ -815,13 +816,15 @@ function buildPA(key){
     hiPts.push(v===null||v===undefined?null:[pad+(k-s0),v]);
   }
   if(hiPts.some(p=>p!==null))list.push({t:'pline',pts:hiPts,cl:C_HIGH,w:W_LEVEL});
-  marks.forEach(m=>list.push(m)); // 선 위에 표시 (가려지지 않게)
+  cds.forEach(c=>list.push(c)); // 캔들은 고점선·저점선보다 앞(위)
+  if(stPts.some(p=>p!==null))list.push({t:'pline',pts:stPts,cl:C_START,w:1.2}); // 시작지점선(얇음)은 캔들 위 그대로
+  marks.forEach(m=>list.push(m)); // 화살표·삼각형은 가장 앞쪽 (선·캔들에 가려지지 않게)
   trades.forEach(t=>{
     if(t.sym!==key||t.k<s0||t.k>cur)return;
     const o=inst.slotOwn[t.k];
     const bar=o>=0?inst.own[o]:null;
     const yi=bar?(t.buy?bar.l:bar.h):t.price;
-    // 같은 칸에 눌림목·매수(초입더블핑크,상승파동)·매수(하락 후, 상승초입) 표시가 있으면 내 매수(B)는 그 아래로, 매도신호 ▼가 있으면 내 매도(S)는 그 위로 비켜서 겹치지 않게 표시
+    // 같은 칸에 눌림목·매수(더블핑크, 상승파동)·매수(하락 후, 상승초입) 표시가 있으면 내 매수(B)는 그 아래로, 매도신호 ▼가 있으면 내 매도(S)는 그 위로 비켜서 겹치지 않게 표시
     const stack=o>=0?(t.buy?((inst.ind.pb[o]===1?1:0)+(inst.ind.rsig[o]===1?1:0)+(inst.ind.bsig[o]===1?1:0)):(inst.ind.ssig[o]===1?1:0)):0;
     list.push({t:'bs',buy:t.buy,xi:pad+(t.k-s0),yi,cl:t.buy?C_B:C_S,stack}); // stack: 같은 칸의 신호 표식 개수(그만큼 비켜서 표시) // 내 매수(B)·매도(S): 맨 위에 표시
   });
@@ -896,22 +899,15 @@ function refresh(){
     inst.by.data.datasets[0].backgroundColor=bv.map(v=>v===2?C_BUYSIG:(v===1?C_RED:'rgba(0,0,0,0)'));
     const byEl=document.getElementById('vBy'+key),byNow=valAt(inst,'buyV',cur);
     if(byNow){byEl.textContent='1';byEl.style.color=byNow===2?C_BUYSIG:C_RED;}else{byEl.textContent='-';byEl.style.color='#555';}
-    // MA5 경사 (각도, 양수만) — 주황 막대 / 오른쪽 숫자는 현재 값
-    const slData=vdata(k=>valAt(inst,'slope',k));
-    inst.sl.data.labels=lbls;
-    inst.sl.data.datasets[0].data=slData;
-    inst.sl.data.datasets[0].backgroundColor=slData.map(v=>(v!==null&&v>0)?'#F5A623':'rgba(0,0,0,0)');
-    let slMax=0;slData.forEach(v=>{if(v!==null&&v>slMax)slMax=v;});
-    const slTop=Math.max(10,Math.ceil(slMax*1.1/10)*10); // 10의 배수로 맞춰 눈금이 0 / 중간 / 최대 세 개만 겹치지 않게
-    inst.sl.options.scales.y.max=slTop;
-    inst.sl.options.scales.y.ticks.stepSize=slTop/2;
-    const slEl=document.getElementById('vSl'+key);
-    const slNow=valAt(inst,'slope',cur);
-    if(slNow!==null&&slNow>0){slEl.textContent=slNow.toFixed(1)+'°';slEl.style.color='#E8821E';}
-    else{slEl.textContent=slNow===null?'-':'0°';slEl.style.color='#555';}
+    // MA5 경사 → 가격 차트 맨 뒷면의 배경 막대. 높이 눈금은 보이는 봉의 최대 각도를 10° 단위로 올림(최소 10°)
+    {
+      const sb=[],padX=padOff();let slMax=0;
+      for(let k=s0;k<=cur;k++){const o=inst.slotOwn[k];if(o<0)continue;const v=inst.ind.slope[o];if(v!==null&&v>0){sb.push({xi:padX+(k-s0),v});if(v>slMax)slMax=v;}}
+      pc.options.plugins.slopeBg.list=sb;
+      pc.options.plugins.slopeBg.top=Math.max(10,Math.ceil(slMax*1.1/10)*10);
+    }
 
-
-    pc.update('none');inst.by.update('none');inst.sl.update('none');
+    pc.update('none');inst.by.update('none');
   });
   updateUI();
 }
@@ -1242,7 +1238,7 @@ function setZoom(v){
   VIS=v;
   try{localStorage.setItem('hxp_vis',String(v));}catch(e){}
   KEYS.forEach(k=>{
-    [I[k].pc,I[k].by,I[k].sl].forEach(c=>{c.options.scales.x.max=VIS+VP-1;});
+    [I[k].pc,I[k].by].forEach(c=>{c.options.scales.x.max=VIS+VP-1;});
   });
   ['T','S'].forEach(x=>{const el=document.getElementById('zLbl'+x);if(el)el.textContent=VIS+'봉';});
   if(tl.length){base=Math.max(0,dayStart-prefixFor(VIS));refresh();}
