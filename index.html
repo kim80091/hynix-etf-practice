@@ -169,10 +169,8 @@ button:active{transform:scale(.94);filter:brightness(.9);box-shadow:inset 0 1px 
     <select id="daySel"><option>데이터를 먼저 불러오세요</option></select>
     <span id="dayCnt" class="info"></span>
     <button id="btnLoad" style="font-weight:700">로드</button>
-    <button id="btnReset" title="이 날짜 처음부터 다시">↺</button>
     <button id="btnRandDay">랜덤</button>
     <span class="sep"></span>
-    <button id="btnToggleT" style="font-weight:700;min-width:46px;">▶</button>
     <span id="speedLbl">배속</span>
     <button id="s05">2배</button><button id="s1" class="b">5배</button>
     <button id="s2">10배</button><button id="s3">20배</button><button id="s4">99배</button>
@@ -1613,8 +1611,6 @@ document.getElementById('btnLoad').onclick=()=>{
   if(v&&days.some(d=>d.date===v))startDay(v);
 };
 document.getElementById('btnRandDay').onclick=loadRandomDay;
-document.getElementById('btnReset').onclick=()=>{if(curDate)startDay(curDate);};
-document.getElementById('btnToggleT').onclick=toggleStart;
 ['T','S'].forEach(x=>{
   document.getElementById('zPlus'+x).onclick=()=>zoomStep(-1);  // ＋ : 봉 많이 (화면에 더 많은 봉)
   document.getElementById('zMinus'+x).onclick=()=>zoomStep(1);   // － : 봉 적게 (봉이 커짐)
