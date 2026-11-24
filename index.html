@@ -124,6 +124,11 @@ button:active{transform:scale(.94);filter:brightness(.9);box-shadow:inset 0 1px 
   #tlog{max-height:90px;}
   .ldwrap summary{font-size:11px;}
 }
+.upd{flex:1 1 100%;border-top:1px dashed #ddd;padding-top:8px;font-size:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.upd .updT{flex:1 1 100%;font-weight:700;color:#444;}
+.upd pre{flex:1 1 100%;white-space:pre-wrap;word-break:break-all;font-size:11px;line-height:1.55;margin:2px 0 0;max-height:300px;overflow:auto;background:#fff;border:1px solid #eee;border-radius:6px;padding:6px 8px;color:#333;}
+.upd pre:empty{display:none;}
+.upd button:disabled{opacity:.45;cursor:default;}
 </style>
 </head>
 <body>
@@ -148,6 +153,14 @@ button:active{transform:scale(.94);filter:brightness(.9);box-shadow:inset 0 1px 
   </div>
   <button class="fbtn" id="btnClearSaved" title="문제가 생겼을 때 이 기기에 저장된 데이터·설정을 지우고 처음 상태로">저장된 데이터·설정 지우기</button>
   <span class="hint">PC: xls 2개를 이 화면에 끌어다 놓아도 됩니다 (파일명에 KODEX/레버리지, SOL/인버스가 있으면 자동 구분)</span>
+  <div class="upd" id="updBox">
+    <div class="updT">🔄 데이터 갱신 (PC) — HTS에서 받은 xls를 합쳐 새 index.html 만들기</div>
+    <label class="fbtn">xls 여러 개 선택<input type="file" id="updFiles" accept=".xls,.xlsx" multiple style="display:none;"></label>
+    <span class="info" id="updInfo">파일 없음</span>
+    <button class="fbtn" id="updGo" disabled>합쳐서 index.html 만들기</button>
+    <span id="updSrcWrap" style="display:none;"><label class="fbtn">현재 index.html 선택<input type="file" id="updSrc" accept=".html,.htm" style="display:none;"></label></span>
+    <pre id="updLog"></pre>
+  </div>
 </div></details>
 
 <div id="bar">
@@ -1662,6 +1675,233 @@ window.addEventListener('orientationchange',()=>setTimeout(fitPhone,300));
 setTimeout(fitPhone,0);
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fitPhone);
 
+})();
+</script>
+<script id="updater">
+(function(){
+'use strict';
+// ── 데이터 갱신: xls 여러 개 → 기존 내장 데이터와 합침 → 점검 → 갱신된 index.html 만들기 ──────────
+const $=id=>document.getElementById(id);
+const pick=$('updFiles'),go=$('updGo'),log=$('updLog'),info=$('updInfo'),srcWrap=$('updSrcWrap'),srcPick=$('updSrc');
+if(!pick||!go||!log)return;
+const parsed=[]; // {name,tk,kind,bars,notes}
+let srcText=null;
+
+function say(lines){log.textContent=Array.isArray(lines)?lines.join('\n'):String(lines);}
+function ensureX(){
+  if(typeof XLSX!=='undefined')return Promise.resolve();
+  return new Promise((res,rej)=>{
+    const sc=document.createElement('script');
+    sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    sc.onload=res;sc.onerror=()=>rej(new Error('엑셀 읽기 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하세요.'));
+    document.head.appendChild(sc);
+  });
+}
+function tickerOf(name){
+  const n=String(name).toUpperCase();
+  const k=/KODEX|레버리지/.test(n),s=/SOL|인버스/.test(n);
+  return k&&!s?'K':s&&!k?'S':null;
+}
+function readFile(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(new Error(f.name+' 읽기 실패'));r.readAsArrayBuffer(f);});}
+function readText(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(new Error('읽기 실패'));r.readAsText(f);});}
+
+function parseBook(buf){
+  const wb=XLSX.read(buf,{type:'array',codepage:949,dense:true});
+  const ws=wb.Sheets[wb.SheetNames[0]];
+  // 시트 선언 범위가 A1:IV65536(256열)처럼 크게 잡혀 있으면 빈 칸까지 훑느라 매우 느려서, 실제 데이터 범위로 줄임
+  const data=Array.isArray(ws)?ws:(ws['!data']||null);
+  if(data){
+    let maxR=0,maxC=0;
+    for(let r=0;r<data.length;r++){const row=data[r];if(row&&row.length){maxR=r+1;if(row.length>maxC)maxC=row.length;}}
+    if(!maxR)throw new Error('시트가 비어 있어요');
+    ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:maxR-1,c:Math.max(maxC-1,0)}});
+  }
+  const all=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+  let ci=-1;const head=all[0]||[];
+  for(let j=0;j<head.length;j++)if(String(head[j]==null?'':head[j]).indexOf('금액_1억이상')>=0)ci=j;
+  const bars=[];let skipped=0;
+  for(const r of all){
+    if(!r||r[0]==null)continue;
+    const d=String(r[0]).replace(/\//g,'-'),t=String(r[1]);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(d)||!/^\d{2}:\d{2}:\d{2}$/.test(t))continue;
+    const o=r[2],h=r[3],l=r[4],c=r[5];
+    if(![o,h,l,c].every(x=>typeof x==='number'&&x>0)){skipped++;continue;}
+    const a=(ci>=0&&typeof r[ci]==='number'&&isFinite(r[ci]))?Math.round(r[ci]*1e6)/1e6:null;
+    bars.push({t:d+'T'+t,o,h,l,c,a});
+  }
+  return {bars,skipped,nrows:all.length};
+}
+function describe(name,pr){
+  // 순서·종류·잘림 점검
+  const b=pr.bars,notes=[];
+  // 순서 순환: HTS 파일은 보통 최신→과거(내림차순). 한 방향이 대부분이면 그 반대로 꺾이는 곳이 순환 지점
+  let ups=0,downs=0;for(let i=1;i<b.length;i++){if(b[i].t>b[i-1].t)ups++;else if(b[i].t<b[i-1].t)downs++;}
+  const up=ups>downs?downs:ups;
+  const secLike=b.filter(x=>x.t.slice(17,19)!=='00').length;
+  const kind=b.length&&secLike/b.length>0.02?'sec':'min';
+  const sorted=b.slice().sort((x,y)=>x.t<y.t?-1:x.t>y.t?1:0);
+  let dup=0;const uniq=[];
+  for(const x of sorted){if(uniq.length&&uniq[uniq.length-1].t===x.t){uniq[uniq.length-1]=x;dup++;}else uniq.push(x);}
+  if(up>0)notes.push('⚠ 시간 순서가 한 번 순환돼 있어요(엑셀 행 한도 초과 흔적) → 순서는 복원했지만 가장 최근 쪽이 잘렸을 수 있어요');
+  if(b.length>=60000)notes.push('⚠ 행 수 '+b.length.toLocaleString()+'개: 엑셀 한도(65,536) 근처예요. 시작/끝 날짜가 원하던 기간에 닿았는지 확인하세요');
+  if(dup)notes.push('같은 시각 중복 '+dup+'개는 하나로 합쳤어요');
+  if(pr.skipped)notes.push('가격이 비정상인 행 '+pr.skipped+'개 제외');
+  return {bars:uniq,kind,notes};
+}
+
+async function onPick(){
+  const fl=[...pick.files];parsed.length=0;go.disabled=true;
+  if(!fl.length){info.textContent='파일 없음';say('');return;}
+  info.textContent='읽는 중…';say('엑셀 읽는 중… (파일이 크면 몇 초 걸려요)');
+  try{
+    await ensureX();
+    const out=[];
+    for(const f of fl){
+      const tk=tickerOf(f.name);
+      const pr=parseBook(await readFile(f));
+      if(!pr.bars.length){out.push('✖ '+f.name+': 날짜·시간·시가·고가·저가·종가 형식의 행을 찾지 못했어요');continue;}
+      const d=describe(f.name,pr);
+      if(!tk){out.push('✖ '+f.name+': 파일명에서 종목을 구분하지 못했어요 (KODEX/레버리지 또는 SOL/인버스가 이름에 있어야 해요)');continue;}
+      parsed.push({name:f.name,tk,kind:d.kind,bars:d.bars,notes:d.notes});
+      const a=d.bars[0].t,z=d.bars[d.bars.length-1].t;
+      out.push('● '+f.name+'\n   '+(tk==='K'?'KODEX':'SOL')+' · '+(d.kind==='sec'?'초 데이터':'1분봉')+' · '+d.bars.length.toLocaleString()+'개 · '+a.replace('T',' ')+' ~ '+z.replace('T',' ')+(d.notes.length?'\n   '+d.notes.join('\n   '):''));
+    }
+    info.textContent=parsed.length+'개 파일 준비됨';
+    go.disabled=!parsed.length;
+    say(out.concat(parsed.length?['','아래 "합쳐서 index.html 만들기"를 누르세요.']:[]));
+  }catch(e){info.textContent='오류';say('✖ '+e.message);}
+}
+pick.addEventListener('change',onPick);
+
+// ── 합치기 ──
+function decodeSec(S){
+  const out=[];if(!S||!S.days)return out;
+  for(const d of Object.keys(S.days).sort())for(const m of S.days[d]){const hm=m[0];for(const e of m[1]){
+    const t=d+'T'+hm+':'+String(e[0]).padStart(2,'0');
+    out.push(e.length===2?{t,o:e[1],h:e[1],l:e[1],c:e[1]}:{t,o:e[1],h:e[2],l:e[3],c:e[4]});}}
+  return out;
+}
+function minuteAgg(secArr){
+  const g=new Map();
+  for(const b of secArr){const m=b.t.slice(0,16);const x=g.get(m);
+    if(!x)g.set(m,{o:b.o,h:b.h,l:b.l,c:b.c});else{if(b.h>x.h)x.h=b.h;if(b.l<x.l)x.l=b.l;x.c=b.c;}}
+  return g;
+}
+function mergeTicker(k,minFiles,secFiles,rep){
+  const E0=window.HXP_EMBEDDED[k],S0=window.HXP_SEC[k];
+  const label=k==='K'?'KODEX':'SOL';
+  // 1분봉
+  const minMap=new Map(E0.rows.map(r=>[r[0].slice(0,16),r.slice()]));
+  let addedMin=0,changedMin=0;
+  for(const f of minFiles)for(const b of f.bars){
+    const key=b.t.slice(0,16),old=minMap.get(key);
+    const row=[key+':00',b.o,b.h,b.l,b.c,b.a!=null?b.a:(old?old[5]:null)];
+    if(!old)addedMin++;else if(old[1]!==b.o||old[2]!==b.h||old[3]!==b.l||old[4]!==b.c)changedMin++;
+    minMap.set(key,row);
+  }
+  // 초
+  const secMap=new Map(decodeSec(S0).map(b=>[b.t,b]));
+  const before=secMap.size;
+  const boundary=new Set();
+  for(const f of secFiles){
+    for(const b of f.bars)secMap.set(b.t,{t:b.t,o:b.o,h:b.h,l:b.l,c:b.c});
+    const a=f.bars[0].t,z=f.bars[f.bars.length-1].t;
+    boundary.add(a.slice(0,16));if(z.slice(11,16)<'15:30')boundary.add(z.slice(0,16));
+  }
+  const sec=[...secMap.values()].sort((x,y)=>x.t<y.t?-1:x.t>y.t?1:0);
+  const agg=minuteAgg(sec);
+  // 1분봉이 아직 없는 최근 날짜는 초 데이터로 합성 (파일 경계의 잘린 분은 제외)
+  let lastMinDate='';for(const key of minMap.keys()){const d=key.slice(0,10);if(d>lastMinDate)lastMinDate=d;}
+  const lastSecMin=sec.length?sec[sec.length-1].t.slice(0,16):'';
+  let synth=0;
+  for(const [m,x] of [...agg.entries()].sort((a,b)=>a[0]<b[0]?-1:1)){
+    if(m.slice(0,10)<=lastMinDate||minMap.has(m))continue;
+    if(boundary.has(m)||(m===lastSecMin&&m.slice(11)<'15:30'))continue;
+    minMap.set(m,[m+':00',x.o,x.h,x.l,x.c,null]);synth++;
+  }
+  const rows=[...minMap.values()].sort((a,b)=>a[0]<b[0]?-1:1);
+  // 초 ↔ 1분봉 점검: 안 맞는 분은 제외
+  const dropped=[];const dropSet=new Set();
+  for(const [m,x] of agg){
+    const r=minMap.get(m);
+    if(!r||r[1]!==x.o||r[2]!==x.h||r[3]!==x.l||r[4]!==x.c){dropSet.add(m);dropped.push(m.replace('T',' ')+(r?'':' (1분봉 없음)'));}
+  }
+  const days={};let kept=0;
+  for(const b of sec){
+    if(dropSet.has(b.t.slice(0,16)))continue;
+    const d=b.t.slice(0,10),hm=b.t.slice(11,16),s=+b.t.slice(17,19);
+    const day=days[d]||(days[d]=[]);
+    let m=day.length&&day[day.length-1][0]===hm?day[day.length-1]:null;
+    if(!m){m=[hm,[]];day.push(m);}
+    m[1].push((b.o===b.h&&b.h===b.l&&b.l===b.c)?[s,b.c]:[s,b.o,b.h,b.l,b.c]);kept++;
+  }
+  const nm=a=>a.map(f=>f.name).join(', ');
+  const stamp=new Date().toISOString().slice(0,10);
+  const E1={name:minFiles.length?('갱신 '+stamp+' · '+nm(minFiles)):E0.name,rows};
+  const S1={name:secFiles.length?('갱신 '+stamp+' · '+nm(secFiles)):S0.name,days};
+  // 보고
+  const dayKeys=Object.keys(days).sort();
+  const minDays=new Set(rows.map(r=>r[0].slice(0,10)));
+  rep.push('■ '+label);
+  rep.push('  1분봉 '+rows.length.toLocaleString()+'개 · '+rows[0][0].slice(0,10)+' ~ '+rows[rows.length-1][0].slice(0,10)+' ('+minDays.size+'일)'+(minFiles.length?' — 새로 '+addedMin.toLocaleString()+'개 추가, '+changedMin+'개 값 수정':'')+(synth?', 초 데이터로 '+synth+'개 합성':''));
+  rep.push('  초 데이터 '+kept.toLocaleString()+'개 · '+(dayKeys.length?dayKeys[0]+' ~ '+dayKeys[dayKeys.length-1]+' ('+dayKeys.length+'일)':'없음')+(secFiles.length?' — 새로 '+(secMap.size-before).toLocaleString()+'개 추가':''));
+  if(dropped.length)rep.push('  제외한 분 '+dropped.length+'개(파일 경계로 일부 초만 있거나 1분봉과 안 맞음): '+dropped.slice(0,6).join(', ')+(dropped.length>6?' …':''));
+  const noSec=[...minDays].filter(d=>!days[d]).length;
+  if(noSec)rep.push('  1분봉만 있는 날 '+noSec+'일 (초 데이터 없음 → 연습은 가능, 분 끝에 한꺼번에 표시)');
+  return {E1,S1};
+}
+
+async function getSource(){
+  try{
+    const r=await fetch(location.href.split('#')[0],{cache:'no-store'});
+    if(r.ok){const t=await r.text();if(t.indexOf('<'+'script id="embedded-data">')>=0)return t;}
+  }catch(e){}
+  return srcText;
+}
+function replaceBlock(src,id,varName,obj){
+  const tag='<'+'script id="'+id+'">';const a=src.indexOf(tag);
+  if(a<0)throw new Error('원본 index.html에서 '+id+' 블록을 찾지 못했어요');
+  const z=src.indexOf('<'+'/script>',a);
+  return src.slice(0,a)+tag+'window.'+varName+'='+JSON.stringify(obj)+';'+src.slice(z);
+}
+srcPick.addEventListener('change',async()=>{
+  const f=srcPick.files[0];if(!f)return;
+  const t=await readText(f);
+  if(t.indexOf('<script id="embedded-data">')<0){say('✖ 이 파일은 이 앱의 index.html이 아닌 것 같아요');return;}
+  srcText=t;say('원본 index.html을 읽었어요. 다시 "합쳐서 index.html 만들기"를 누르세요.');
+});
+
+go.addEventListener('click',async()=>{
+  go.disabled=true;
+  try{
+    const E=window.HXP_EMBEDDED,S=window.HXP_SEC;
+    if(!E||!S)throw new Error('앱에 내장된 데이터가 없어요');
+    const rep=['합친 결과',''];
+    const newE={K:E.K,S:E.S},newS={K:S.K,S:S.S};
+    for(const k of ['K','S']){
+      const mf=parsed.filter(p=>p.tk===k&&p.kind==='min'),sf=parsed.filter(p=>p.tk===k&&p.kind==='sec');
+      if(!mf.length&&!sf.length){rep.push('■ '+(k==='K'?'KODEX':'SOL')+': 새 파일 없음 → 그대로 유지');continue;}
+      const r=mergeTicker(k,mf,sf,rep);newE[k]=r.E1;newS[k]=r.S1;
+    }
+    const notes=parsed.flatMap(p=>p.notes.map(n=>p.name+': '+n));
+    if(notes.length){rep.push('');rep.push('주의');notes.forEach(n=>rep.push('  '+n));}
+    let src=await getSource();
+    if(!src){
+      srcWrap.style.display='';
+      say(rep.concat(['','현재 index.html을 자동으로 읽지 못했어요(파일로 직접 연 경우). 아래에서 지금 쓰는 index.html 파일을 선택해 주세요.']));
+      go.disabled=false;return;
+    }
+    src=replaceBlock(src,'embedded-data','HXP_EMBEDDED',newE);
+    src=replaceBlock(src,'embedded-sec','HXP_SEC',newS);
+    const blob=new Blob([src],{type:'text/html;charset=utf-8'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='index.html';
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),10000);
+    rep.push('');rep.push('✔ 갱신된 index.html을 내려받았어요 ('+(src.length/1048576).toFixed(1)+'MB).');
+    rep.push('   이 파일을 GitHub의 index.html에 올리면 휴대폰에도 같은 데이터가 보여요.');
+    say(rep);
+  }catch(e){say('✖ '+e.message);}
+  go.disabled=!parsed.length;
+});
 })();
 </script>
 </body>
