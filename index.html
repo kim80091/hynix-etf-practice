@@ -104,9 +104,9 @@ button:active{transform:scale(.94);filter:brightness(.9);box-shadow:inset 0 1px 
   .card{padding:4px 8px;}
   .card .val{font-size:14px;}
   .banner{font-size:11px;}
-  .cwrap.pc{height:230px;}
+  .cwrap.pc{height:var(--chH,230px);} /* 두 차트+매수매도 버튼이 한 화면에 들어오도록 fitPhone()이 계산 */
   .cwrap.sp{height:24px;}
-  .cwrap.by{height:30px;}
+  .cwrap.by{height:26px;}
   .ddrow{padding:0 8px;font-size:10px;line-height:13px;}
   .ddval{font-size:11px;}
   .ihead{gap:3px 8px;}
@@ -127,6 +127,7 @@ button:active{transform:scale(.94);filter:brightness(.9);box-shadow:inset 0 1px 
 </style>
 </head>
 <body>
+<div id="vhProbe" style="position:fixed;left:-9999px;top:0;width:1px;height:100vh;height:100svh;visibility:hidden;pointer-events:none;"></div>
 <div class="wrap">
 
 <div id="overlay"><div class="spin"></div><div id="ovmsg">로딩 중...</div></div>
@@ -1261,6 +1262,7 @@ function startDay(date){
   el.textContent='📈 '+date+' | '+D.first+'~'+D.last+' | KODEX '+D.nK+'봉 · SOL '+D.nS+'봉'+note;
   el.className='banner'+(D.incomplete?' warn':'');
   document.getElementById('daySel').value=date;
+  fitPhone();
   refresh();
 }
 function loadRandomDay(){
@@ -1351,6 +1353,20 @@ function fillDaySelect(){
   const cap=document.getElementById('dayCnt'); // 고를 수 있는 날짜 수와 기간
   if(cap)cap.textContent=nAll?nAll+'일 ('+dFirst.slice(5)+' ~ '+dLast.slice(5)+') · 초 데이터 '+nSec+'일(⏱) · 랜덤은 ⏱ 날에서':'연습할 수 있는 날이 없습니다';
   updateDataInfo();
+}
+function fitPhone(){ // 폰: 두 차트 + 신호 막대 + 매수/매도 버튼이 한 화면에 모두 보이도록 차트 높이를 화면에 맞춤
+  const de=document.documentElement;
+  if(window.innerWidth>760){de.style.removeProperty('--chH');return;}
+  const k=document.getElementById('cPriceK'),s2=document.getElementById('cPriceS'),insts=document.querySelectorAll('.inst');
+  if(!k||!s2||insts.length<2)return;
+  const wk=k.parentNode,ws=s2.parentNode;
+  const probe=document.getElementById('vhProbe');
+  let vh=probe?probe.offsetHeight:0; if(!vh||vh<300)vh=window.innerHeight; // svh: 도구막대가 접히고 펴져도 변하지 않는 값
+  const span=insts[1].getBoundingClientRect().bottom-insts[0].getBoundingClientRect().top;
+  const overhead=span-wk.offsetHeight-ws.offsetHeight; // 차트를 뺀 나머지(이름·신호 막대·버튼 등)
+  let h=Math.floor((vh-overhead-14)/2);
+  h=Math.max(110,Math.min(300,h));
+  if(Math.abs(h-wk.offsetHeight)>=2)de.style.setProperty('--chH',h+'px');
 }
 function applySpeedUI(){ // 배속 버튼 표시
   ['s05','s1','s2','s3','s4'].forEach((id,i)=>{
@@ -1641,6 +1657,10 @@ document.getElementById('btnClearSaved').onclick=()=>{
 // ── 시작: 지난번에 불러온 데이터가 있으면 자동 복원 ─────────────
 ['T','S'].forEach(x=>{const el=document.getElementById('zLbl'+x);if(el)el.textContent=VIS+'봉';});
 restoreSaved();
+window.addEventListener('resize',fitPhone);
+window.addEventListener('orientationchange',()=>setTimeout(fitPhone,300));
+setTimeout(fitPhone,0);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fitPhone);
 
 })();
 </script>
