@@ -64,6 +64,7 @@ button:active{transform:scale(.94);filter:brightness(.9);box-shadow:inset 0 1px 
 .cwrap.sp{height:34px;}
 .cwrap.by{height:40px;}
 .cwrap canvas{position:absolute;top:0;left:0;width:100%;height:100%;}
+.pnlTag{position:absolute;top:4px;left:6px;z-index:5;display:none;padding:2px 7px;border-radius:5px;font-size:15px;font-weight:800;background:rgba(255,255,255,.85);pointer-events:none;line-height:1.3;}
 .ddrow{display:flex;justify-content:space-between;padding:2px 8px 0;font-size:11px;color:#888;}
 .ddval{font-size:13px;font-weight:700;color:#555;}
 
@@ -206,7 +207,7 @@ button:active{transform:scale(.94);filter:brightness(.9);box-shadow:inset 0 1px 
     <span class="iprice" id="pxK">-</span><span class="ichg" id="chgK"></span><span class="ipos" id="posK"></span>
     <span class="ileg"><span style="color:#F5A623;">MA5</span> <span style="color:#2962FF;font-weight:900;">─</span><span style="color:#1E4FD8;">시작지점</span> <span style="color:#FFD400;font-weight:900;text-shadow:0 0 1px #B38F00;">━</span><span style="color:#A67F00;">고점선</span> <span style="color:#00FFFF;font-weight:900;text-shadow:0 0 1px #0097A7;">━</span><span style="color:#00838F;">저점선</span> <span style="color:#0000FF;">▼매도신호</span> <span style="color:#FF8000;">▲눌림목선신호</span> <span style="color:#A00A1E;">▲매수(하락 후, 상승초입)</span> <span style="color:#FF70C1;">▲매수(더블핑크, 상승파동)</span></span>
   </div>
-  <div class="cbox"><div class="cwrap pc"><canvas id="cPriceK"></canvas></div></div>
+  <div class="cbox"><div class="cwrap pc"><canvas id="cPriceK"></canvas><div class="pnlTag" id="pnlTagK"></div></div></div>
   <div class="cbox"><div class="ddrow"><span>매수 신호 <b style="color:#A00A1E;">■ 하락 후</b> <b style="color:#FF70C1;">■ 더블핑크</b> <span style="color:#999;">(겹치면 핑크)</span></span><span class="ddval" id="vByK">-</span></div><div class="cwrap by"><canvas id="cByK"></canvas></div></div>
   <div class="tgrp" id="grpK"><span class="tname" style="color:#D93025;">KODEX 레버리지</span>
     <button class="g" id="btnBuyK">매수</button>
@@ -222,7 +223,7 @@ button:active{transform:scale(.94);filter:brightness(.9);box-shadow:inset 0 1px 
     <span class="zoomgrp"><span class="zl2">상하</span><button class="zb" id="zyMinusS" title="상하 축소 (가격 범위 넓게)">－</button><span class="zl" id="zyLblS">자동</span><button class="zb" id="zyPlusS" title="상하 확대 (현재 봉 기준, 가격 범위 좁게)">＋</button><button class="zb zauto" id="zyAutoS" title="자동 맞춤으로 되돌리기">자동</button></span>
     <span class="zoomgrp"><span class="zl2">가로</span><button class="zb" id="zMinusS" title="봉 적게 (가로 확대)">－</button><span class="zl" id="zLblS">60봉</span><button class="zb" id="zPlusS" title="봉 많이 (가로 축소)">＋</button></span>
   </div>
-  <div class="cbox"><div class="cwrap pc"><canvas id="cPriceS"></canvas></div></div>
+  <div class="cbox"><div class="cwrap pc"><canvas id="cPriceS"></canvas><div class="pnlTag" id="pnlTagS"></div></div></div>
   <div class="cbox"><div class="ddrow"><span>매수 신호 <b style="color:#A00A1E;">■ 하락 후</b> <b style="color:#FF70C1;">■ 더블핑크</b> <span style="color:#999;">(겹치면 핑크)</span></span><span class="ddval" id="vByS">-</span></div><div class="cwrap by"><canvas id="cByS"></canvas></div></div>
   <div class="tgrp" id="grpS"><span class="tname" style="color:#2F6FD3;">SOL 인버스2X</span>
     <button class="g" id="btnBuyS">매수</button>
@@ -950,7 +951,9 @@ function updateUI(){
       const net=(p-pos.p)/pos.p*100-FEE*100;
       poEl.textContent='보유 @ '+fp(pos.p)+' ('+(net>0?'+':'')+net.toFixed(2)+'%)';
       poEl.style.color=net>=0?pC:lC;
-    }else{poEl.textContent='';}
+      const tg=document.getElementById('pnlTag'+key);
+      tg.textContent=(net>0?'+':'')+net.toFixed(2)+'%';tg.style.color=net>=0?pC:lC;tg.style.display='block';
+    }else{poEl.textContent='';const tg=document.getElementById('pnlTag'+key);tg.style.display='none';tg.textContent='';}
   });
   let netNow=0;
   if(pos){
